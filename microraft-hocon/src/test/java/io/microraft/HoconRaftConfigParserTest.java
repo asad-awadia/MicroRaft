@@ -17,7 +17,9 @@
 package io.microraft;
 
 import static io.microraft.HoconRaftConfigParser.parseConfig;
-import static org.assertj.core.api.Assertions.assertThat;
+import static io.microraft.test.util.ParserTestUtils.assertConfigException;
+import static io.microraft.test.util.ParserTestUtils.assertLongTimeoutConfig;
+import static io.microraft.test.util.ParserTestUtils.assertSampleConfig;
 
 import org.junit.Test;
 
@@ -28,7 +30,7 @@ import io.microraft.test.util.BaseTest;
 public class HoconRaftConfigParserTest extends BaseTest {
 
     @Test
-    public void test_parseValidHoconString() {
+    public void parseConfig_whenValidHoconProvided_returnsConfig() {
         String configString = "raft {\n" + "  leader-election-timeout-millis: 750\n"
                 + "  leader-heartbeat-period-secs: 15\n" + "  leader-heartbeat-timeout-secs: 45\n"
                 + "  append-entries-request-batch-size: 750\n" + "  commit-count-to-take-snapshot: 7500\n"
@@ -37,24 +39,44 @@ public class HoconRaftConfigParserTest extends BaseTest {
 
         RaftConfig config = parseConfig(ConfigFactory.parseString(configString));
 
-        assertThat(config.getLeaderElectionTimeoutMillis()).isEqualTo(750L);
-        assertThat(config.getLeaderHeartbeatPeriodSecs()).isEqualTo(15L);
-        assertThat(config.getLeaderHeartbeatTimeoutSecs()).isEqualTo(45L);
-        assertThat(config.getAppendEntriesRequestBatchSize()).isEqualTo(750);
-        assertThat(config.getCommitCountToTakeSnapshot()).isEqualTo(7500);
-        assertThat(config.getMaxPendingLogEntryCount()).isEqualTo(1500);
-        assertThat(config.isTransferSnapshotsFromFollowersEnabled()).isFalse();
-        assertThat(config.getRaftNodeReportPublishPeriodSecs()).isEqualTo(20);
+        assertSampleConfig(config);
     }
 
-    @Test(expected = IllegalArgumentException.class)
-    public void test_nonExistingConfig() {
-        parseConfig(ConfigFactory.parseString(""));
+    @Test
+    public void parseConfig_whenLongTimeoutProvided_returnsConfig() {
+        String configString = "raft {\n" + "  leader-election-timeout-millis: 5000000000\n"
+                + "  leader-heartbeat-period-secs: 15\n" + "  leader-heartbeat-timeout-secs: 45\n" + "}\n";
+
+        RaftConfig config = parseConfig(ConfigFactory.parseString(configString));
+
+        assertLongTimeoutConfig(config);
     }
 
-    @Test(expected = NullPointerException.class)
-    public void test_nullConfig() {
-        parseConfig(null);
+    @Test
+    public void parseConfig_whenFractionalLongProvided_throwsIllegalArgumentException() {
+        String configString = "raft {\n" + "  leader-election-timeout-millis: 1.5\n" + "}\n";
+
+        assertConfigException(() -> parseConfig(ConfigFactory.parseString(configString)), IllegalArgumentException.class,
+                "Config field 'raft.leader-election-timeout-millis' must be an integer in the long range: 1.5");
+    }
+
+    @Test
+    public void parseConfig_whenOutOfRangeIntProvided_throwsIllegalArgumentException() {
+        String configString = "raft {\n" + "  append-entries-request-batch-size: 2147483648\n" + "}\n";
+
+        assertConfigException(() -> parseConfig(ConfigFactory.parseString(configString)), IllegalArgumentException.class,
+                "Config field 'raft.append-entries-request-batch-size' must be an integer in the int range: 2147483648");
+    }
+
+    @Test
+    public void parseConfig_whenRaftSectionMissing_throwsIllegalArgumentException() {
+        assertConfigException(() -> parseConfig(ConfigFactory.parseString("")), IllegalArgumentException.class,
+                "No raft config provided!");
+    }
+
+    @Test
+    public void parseConfig_whenConfigIsNull_throwsNullPointerException() {
+        assertConfigException(() -> parseConfig(null), NullPointerException.class, null);
     }
 
 }

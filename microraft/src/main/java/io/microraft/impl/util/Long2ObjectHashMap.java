@@ -44,6 +44,8 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 @SuppressWarnings("checkstyle:magicnumber")
 public final class Long2ObjectHashMap<V> implements Map<Long, V> {
 
+    private static final int MAX_CAPACITY = 1 << 30;
+
     /**
      * The default load factor for constructors not explicitly supplying it
      */
@@ -79,6 +81,8 @@ public final class Long2ObjectHashMap<V> implements Map<Long, V> {
      *            limit for resizing on puts
      */
     public Long2ObjectHashMap(final int initialCapacity, final double loadFactor) {
+        validateInitialCapacity(initialCapacity);
+        validateLoadFactor(loadFactor);
         this.loadFactor = loadFactor;
         capacity = nextPowerOfTwo(initialCapacity);
         mask = capacity - 1;
@@ -94,6 +98,22 @@ public final class Long2ObjectHashMap<V> implements Map<Long, V> {
 
     private static int nextPowerOfTwo(final int value) {
         return 1 << (32 - Integer.numberOfLeadingZeros(value - 1));
+    }
+
+    private static void validateInitialCapacity(int initialCapacity) {
+        if (initialCapacity < 0) {
+            throw new IllegalArgumentException("Initial capacity cannot be negative: " + initialCapacity);
+        }
+
+        if (initialCapacity > MAX_CAPACITY) {
+            throw new IllegalArgumentException("Initial capacity cannot exceed " + MAX_CAPACITY + ": " + initialCapacity);
+        }
+    }
+
+    private static void validateLoadFactor(double loadFactor) {
+        if (Double.isNaN(loadFactor) || loadFactor <= 0 || loadFactor >= 1.0d) {
+            throw new IllegalArgumentException("Load factor must be > 0 and < 1: " + loadFactor);
+        }
     }
 
     private static int longHash(final long value, final int mask) {

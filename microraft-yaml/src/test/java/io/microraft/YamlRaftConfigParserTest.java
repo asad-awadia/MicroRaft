@@ -16,11 +16,14 @@
 
 package io.microraft;
 
-import static org.assertj.core.api.Assertions.assertThat;
+import static io.microraft.test.util.ParserTestUtils.assertConfigException;
+import static io.microraft.test.util.ParserTestUtils.assertLongTimeoutConfig;
+import static io.microraft.test.util.ParserTestUtils.assertMaxIntConfigValue;
+import static io.microraft.test.util.ParserTestUtils.assertSampleConfig;
+import static io.microraft.test.util.ParserTestUtils.createTempFile;
 
 import java.io.ByteArrayInputStream;
 import java.io.File;
-import java.io.FileWriter;
 import java.io.IOException;
 import java.io.StringReader;
 
@@ -43,60 +46,103 @@ public class YamlRaftConfigParserTest extends BaseTest {
             + " raft-node-report-publish-period-secs: 20";
 
     @Test
-    public void test_parseValidYamlString() {
+    public void parseString_whenValidYamlProvided_returnsConfig() {
         RaftConfig config = YamlRaftConfigParser.parseString(new Yaml(), yamlString);
 
-        assertConfig(config);
+        assertSampleConfig(config);
     }
 
     @Test
-    public void test_parseValidYamlReader() {
+    public void parseString_whenLongTimeoutProvided_returnsConfig() {
+        String yamlWithLongTimeout = "raft:\n" + " leader-election-timeout-millis: 5000000000\n"
+                + " leader-heartbeat-period-secs: 15\n" + " leader-heartbeat-timeout-secs: 45\n";
+
+        RaftConfig config = YamlRaftConfigParser.parseString(new Yaml(), yamlWithLongTimeout);
+
+        assertLongTimeoutConfig(config);
+    }
+
+    @Test
+    public void parseString_whenMaxIntProvidedForIntField_returnsConfig() {
+        String yamlWithLongTypedInt = "raft:\n" + " append-entries-request-batch-size: 2147483647\n";
+
+        RaftConfig config = YamlRaftConfigParser.parseString(new Yaml(), yamlWithLongTypedInt);
+
+        assertMaxIntConfigValue(config.getAppendEntriesRequestBatchSize());
+    }
+
+    @Test
+    public void parseString_whenOutOfRangeIntProvided_throwsIllegalArgumentException() {
+        String yamlWithOutOfRangeInt = "raft:\n" + " append-entries-request-batch-size: 2147483648\n";
+
+        assertConfigException(() -> YamlRaftConfigParser.parseString(new Yaml(), yamlWithOutOfRangeInt),
+                IllegalArgumentException.class,
+                "Config field 'append-entries-request-batch-size' must be an integer in the int range: 2147483648");
+    }
+
+    @Test
+    public void parseString_whenFractionalLongProvided_throwsIllegalArgumentException() {
+        String yamlWithFractionalLong = "raft:\n" + " leader-election-timeout-millis: 1.5\n";
+
+        assertConfigException(() -> YamlRaftConfigParser.parseString(new Yaml(), yamlWithFractionalLong),
+                IllegalArgumentException.class,
+                "Config field 'leader-election-timeout-millis' must be an integer in the long range: 1.5");
+    }
+
+    @Test
+    public void parseString_whenFractionalIntProvided_throwsIllegalArgumentException() {
+        String yamlWithFractionalInt = "raft:\n" + " append-entries-request-batch-size: 1.5\n";
+
+        assertConfigException(() -> YamlRaftConfigParser.parseString(new Yaml(), yamlWithFractionalInt),
+                IllegalArgumentException.class,
+                "Config field 'append-entries-request-batch-size' must be an integer in the int range: 1.5");
+    }
+
+    @Test
+    public void parseString_whenRootIsNotMap_throwsIllegalArgumentException() {
+        assertConfigException(() -> YamlRaftConfigParser.parseString(new Yaml(), "- not-a-map"),
+                IllegalArgumentException.class,
+                "YAML root must be a map!");
+    }
+
+    @Test
+    public void parseString_whenRaftSectionIsNotMap_throwsIllegalArgumentException() {
+        assertConfigException(() -> YamlRaftConfigParser.parseString(new Yaml(), "raft: 1"),
+                IllegalArgumentException.class,
+                "RaftConfig must be a map!");
+    }
+
+    @Test
+    public void parseReader_whenValidYamlProvided_returnsConfig() {
         RaftConfig config = YamlRaftConfigParser.parseReader(new Yaml(), new StringReader(yamlString));
 
-        assertConfig(config);
+        assertSampleConfig(config);
     }
 
     @Test
-    public void test_parseValidYamlInputReader() {
+    public void parseInputStream_whenValidYamlProvided_returnsConfig() {
         RaftConfig config = YamlRaftConfigParser.parseInputStream(new Yaml(),
                 new ByteArrayInputStream(yamlString.getBytes()));
 
-        assertConfig(config);
+        assertSampleConfig(config);
     }
 
     @Test
-    public void test_parseValidFile() throws IOException {
-        File file = folder.newFile();
-        FileWriter writer = new FileWriter(file);
-        writer.write(yamlString);
-        writer.close();
+    public void parseFile_whenValidYamlFileProvided_returnsConfig() throws IOException {
+        File file = createTempFile(folder, yamlString);
 
         RaftConfig config = YamlRaftConfigParser.parseFile(new Yaml(), file);
 
-        assertConfig(config);
+        assertSampleConfig(config);
     }
 
     @Test
-    public void test_parseValidFileName() throws IOException {
-        File file = folder.newFile();
-        FileWriter writer = new FileWriter(file);
-        writer.write(yamlString);
-        writer.close();
+    public void parseFile_whenValidYamlFilePathProvided_returnsConfig() throws IOException {
+        File file = createTempFile(folder, yamlString);
 
         RaftConfig config = YamlRaftConfigParser.parseFile(new Yaml(), file.getPath());
 
-        assertConfig(config);
-    }
-
-    private void assertConfig(RaftConfig config) {
-        assertThat(config.getLeaderElectionTimeoutMillis()).isEqualTo(750L);
-        assertThat(config.getLeaderHeartbeatPeriodSecs()).isEqualTo(15L);
-        assertThat(config.getLeaderHeartbeatTimeoutSecs()).isEqualTo(45L);
-        assertThat(config.getAppendEntriesRequestBatchSize()).isEqualTo(750);
-        assertThat(config.getCommitCountToTakeSnapshot()).isEqualTo(7500);
-        assertThat(config.getMaxPendingLogEntryCount()).isEqualTo(1500);
-        assertThat(config.isTransferSnapshotsFromFollowersEnabled()).isFalse();
-        assertThat(config.getRaftNodeReportPublishPeriodSecs()).isEqualTo(20);
+        assertSampleConfig(config);
     }
 
 }

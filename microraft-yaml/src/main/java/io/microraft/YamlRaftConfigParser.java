@@ -69,8 +69,9 @@ public final class YamlRaftConfigParser {
      *             if no string passed
      * @throws NullPointerException
      *             if no RaftConfig present in the string
-     * @throws ClassCastException
-     *             if a configuration value has wrong type
+     * @throws IllegalArgumentException
+     *             if the YAML root / raft section is not a map, or a configuration
+     *             value is invalid
      *
      * @see RaftConfig
      */
@@ -93,8 +94,9 @@ public final class YamlRaftConfigParser {
      *             if no reader passed
      * @throws NullPointerException
      *             if no RaftConfig present in the reader
-     * @throws ClassCastException
-     *             if a configuration value has wrong type
+     * @throws IllegalArgumentException
+     *             if the YAML root / raft section is not a map, or a configuration
+     *             value is invalid
      *
      * @see RaftConfig
      */
@@ -102,8 +104,7 @@ public final class YamlRaftConfigParser {
         requireNonNull(yaml, "No yaml object!");
         requireNonNull(reader, "No reader!");
 
-        Map<String, Object> parameters = yaml.load(reader);
-        return parse(parameters);
+        return parse(yaml.load(reader));
     }
 
     /**
@@ -120,8 +121,9 @@ public final class YamlRaftConfigParser {
      *             if no reader passed
      * @throws NullPointerException
      *             if no RaftConfig present in the reader
-     * @throws ClassCastException
-     *             if a configuration value has wrong type
+     * @throws IllegalArgumentException
+     *             if the YAML root / raft section is not a map, or a configuration
+     *             value is invalid
      *
      * @see RaftConfig
      */
@@ -169,8 +171,9 @@ public final class YamlRaftConfigParser {
      *             if no input stream passed
      * @throws NullPointerException
      *             if no RaftConfig present in the stream
-     * @throws ClassCastException
-     *             if a configuration value has wrong type
+     * @throws IllegalArgumentException
+     *             if the YAML root / raft section is not a map, or a configuration
+     *             value is invalid
      *
      * @see RaftConfig
      */
@@ -182,39 +185,39 @@ public final class YamlRaftConfigParser {
     }
 
     @SuppressWarnings("checkstyle:npathcomplexity")
-    private static RaftConfig parse(Map<String, Object> map) {
-        requireNonNull(map, "RaftConfig not provided!");
-        Map<String, Object> params = (Map<String, Object>) map.get(RAFT_CONFIG_CONTAINER_NAME);
+    private static RaftConfig parse(Object yamlObject) {
+        Map<String, Object> map = getMap(yamlObject, "YAML root must be a map!");
+        Map<String, Object> params = getMap(map.get(RAFT_CONFIG_CONTAINER_NAME), "RaftConfig must be a map!");
         requireNonNull(params, "RaftConfig not provided!");
 
         RaftConfigBuilder builder = RaftConfig.newBuilder();
 
-        Integer leaderElectionTimeoutMillis = (Integer) params.get(LEADER_ELECTION_TIMEOUT_MILLIS_FIELD_NAME);
+        Long leaderElectionTimeoutMillis = getLongValue(params, LEADER_ELECTION_TIMEOUT_MILLIS_FIELD_NAME);
         if (leaderElectionTimeoutMillis != null) {
             builder.setLeaderElectionTimeoutMillis(leaderElectionTimeoutMillis);
         }
 
-        Integer leaderHeartbeatPeriodSecs = (Integer) params.get(LEADER_HEARTBEAT_PERIOD_SECS_FIELD_NAME);
+        Long leaderHeartbeatPeriodSecs = getLongValue(params, LEADER_HEARTBEAT_PERIOD_SECS_FIELD_NAME);
         if (leaderHeartbeatPeriodSecs != null) {
             builder.setLeaderHeartbeatPeriodSecs(leaderHeartbeatPeriodSecs);
         }
 
-        Integer leaderHeartbeatTimeoutSecs = (Integer) params.get(LEADER_HEARTBEAT_TIMEOUT_SECS_FIELD_NAME);
+        Long leaderHeartbeatTimeoutSecs = getLongValue(params, LEADER_HEARTBEAT_TIMEOUT_SECS_FIELD_NAME);
         if (leaderHeartbeatTimeoutSecs != null) {
             builder.setLeaderHeartbeatTimeoutSecs(leaderHeartbeatTimeoutSecs);
         }
 
-        Integer appendEntriesRequestBatchSize = (Integer) params.get(APPEND_ENTRIES_REQUEST_BATCH_SIZE_FIELD_NAME);
+        Integer appendEntriesRequestBatchSize = getIntValue(params, APPEND_ENTRIES_REQUEST_BATCH_SIZE_FIELD_NAME);
         if (appendEntriesRequestBatchSize != null) {
             builder.setAppendEntriesRequestBatchSize(appendEntriesRequestBatchSize);
         }
 
-        Integer commitCountToTakeSnapshot = (Integer) params.get(COMMIT_COUNT_TO_TAKE_SNAPSHOT_FIELD_NAME);
+        Integer commitCountToTakeSnapshot = getIntValue(params, COMMIT_COUNT_TO_TAKE_SNAPSHOT_FIELD_NAME);
         if (commitCountToTakeSnapshot != null) {
             builder.setCommitCountToTakeSnapshot(commitCountToTakeSnapshot);
         }
 
-        Integer maxPendingLogEntryCount = (Integer) params.get(MAX_PENDING_LOG_ENTRY_COUNT_FIELD_NAME);
+        Integer maxPendingLogEntryCount = getIntValue(params, MAX_PENDING_LOG_ENTRY_COUNT_FIELD_NAME);
         if (maxPendingLogEntryCount != null) {
             builder.setMaxPendingLogEntryCount(maxPendingLogEntryCount);
         }
@@ -225,12 +228,60 @@ public final class YamlRaftConfigParser {
             builder.setTransferSnapshotsFromFollowersEnabled(transferSnapshotsFromFollowersEnabled);
         }
 
-        Integer raftNodeReportPublishPeriodSecs = (Integer) params.get(RAFT_NODE_REPORT_PUBLISH_PERIOD_SECS_FIELD_NAME);
+        Integer raftNodeReportPublishPeriodSecs = getIntValue(params, RAFT_NODE_REPORT_PUBLISH_PERIOD_SECS_FIELD_NAME);
         if (raftNodeReportPublishPeriodSecs != null) {
             builder.setRaftNodeReportPublishPeriodSecs(raftNodeReportPublishPeriodSecs);
         }
 
         return builder.build();
+    }
+
+    /**
+     * Casts the given YAML node to a map with a descriptive failure message.
+     *
+     * @throws NullPointerException
+     *             if the value is null
+     * @throws IllegalArgumentException
+     *             if the value is not a map
+     */
+    @SuppressWarnings("unchecked")
+    private static Map<String, Object> getMap(Object value, String errorMessage) {
+        requireNonNull(value, "RaftConfig not provided!");
+        if (!(value instanceof Map)) {
+            throw new IllegalArgumentException(errorMessage);
+        }
+
+        return (Map<String, Object>) value;
+    }
+
+    /**
+     * Returns the named field as a long, or null if it is absent.
+     *
+     * @throws IllegalArgumentException
+     *             if the value is invalid
+     */
+    private static Long getLongValue(Map<String, Object> params, String fieldName) {
+        Object value = params.get(fieldName);
+        if (value == null) {
+            return null;
+        }
+
+        return ConfigParserUtil.getLong(value, fieldName);
+    }
+
+    /**
+     * Returns the named field as an int, or null if it is absent.
+     *
+     * @throws IllegalArgumentException
+     *             if the value is invalid
+     */
+    private static Integer getIntValue(Map<String, Object> params, String fieldName) {
+        Object value = params.get(fieldName);
+        if (value == null) {
+            return null;
+        }
+
+        return ConfigParserUtil.getInt(value, fieldName);
     }
 
 }

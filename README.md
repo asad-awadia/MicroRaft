@@ -56,7 +56,58 @@ enhancements:
 
 ## Get started
 
-See [the User Guide](https://microraft.io/docs/setup).
+Run a single tutorial test that starts a local 3-node Raft group, elects a
+leader, and commits operations to an atomic register:
+
+```bash
+./gradlew :microraft-tutorial:test \
+  --tests io.microraft.tutorial.OperationCommitTest \
+  -Pmicroraft.javaVersion=21
+```
+
+`microraft.javaVersion` defaults to `11`. If Java 11 is already installed on
+your machine, you can omit that property. If you only have a newer local JDK,
+set `-Pmicroraft.javaVersion=<your-installed-version>` to match it. If you want
+a quick smoke test for leader election only, run:
+
+```bash
+./gradlew :microraft-tutorial:test \
+  --tests io.microraft.tutorial.LeaderElectionTest \
+  -Pmicroraft.javaVersion=21
+```
+
+What you will see:
+
+- a 3-node local Raft group bootstrapping in-process,
+- a leader elected for the group,
+- replicated operations committed with increasing commit indexes,
+- the final atomic register value observed from the leader.
+
+Next steps:
+
+- Read the runnable tutorial entry point in [microraft-tutorial/README.md](microraft-tutorial/README.md).
+- Continue with the [setup guide](https://microraft.io/docs/setup/).
+- Build an atomic register by following the [tutorial](https://microraft.io/docs/tutorial-building-an-atomic-register/).
+
+## Why MicroRaft?
+
+Use MicroRaft when you want to embed consensus into your own Java service
+without adopting an entire distributed data platform.
+
+MicroRaft is a good fit when you need:
+
+- a lightweight embeddable Raft library,
+- explicit control over persistence, transport, serialization, and threading,
+- production-oriented Raft features such as membership changes, snapshotting,
+  quorum-aware reads, and leadership transfer.
+
+MicroRaft is not the right fit when you need:
+
+- a turnkey distributed database,
+- a managed coordination service,
+- a system that hides Raft integration details completely.
+
+For a fuller positioning guide, see [Why MicroRaft?](https://microraft.io/docs/why-microraft/).
 
 ## Use MicroRaft in your project
 

@@ -37,6 +37,14 @@ RaftConfig raftConfig = YamlRaftConfigParser.parseFile(new Yaml(), configFilePat
 Other than reading your config from a file, `YamlRaftConfigParser` also offers
 a few other parsing methods.
 
+## Validation rules
+
+`YamlRaftConfigParser` validates numeric config values strictly:
+
+- fractional numeric values such as `1.5` are rejected,
+- values for `int`-backed fields must stay within the Java `int` range,
+- large integral values for `long`-backed fields are accepted.
+
 [microraft-default.yaml](https://github.com/MicroRaft/MicroRaft/blob/master/microraft-yaml/microraft-default.yaml)
 is the default MicroRaft YAML configuration file.
 

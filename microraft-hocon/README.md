@@ -39,6 +39,14 @@ Other than reading your config from a file, you can create your HOCON `Config`
 object in any other way and then parse it via
 `HoconRaftConfigParser.parseConfig()`.
 
+## Validation rules
+
+`HoconRaftConfigParser` validates numeric config values strictly:
+
+- fractional numeric values such as `1.5` are rejected,
+- values for `int`-backed fields must stay within the Java `int` range,
+- large integral values for `long`-backed fields are accepted.
+
 [microraft-default.conf](https://github.com/MicroRaft/MicroRaft/blob/master/microraft-hocon/microraft-default.conf)
 is the default MicroRaft HOCON configuration file.
 

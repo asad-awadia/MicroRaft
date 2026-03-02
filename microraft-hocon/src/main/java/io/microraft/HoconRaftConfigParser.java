@@ -30,7 +30,7 @@ import static java.util.Objects.requireNonNull;
 import javax.annotation.Nonnull;
 
 import com.typesafe.config.Config;
-import com.typesafe.config.ConfigException.WrongType;
+import com.typesafe.config.ConfigException;
 
 import io.microraft.RaftConfig.RaftConfigBuilder;
 
@@ -60,9 +60,8 @@ public final class HoconRaftConfigParser {
      * @throws NullPointerException
      *             if the given config object is null
      * @throws IllegalArgumentException
-     *             if the given config object has no "raft.*" field
-     * @throws WrongType
-     *             if a configuration value has wrong type
+     *             if the given config object has no "raft.*" field, or a
+     *             configuration value is invalid
      */
     @SuppressWarnings("checkstyle:npathcomplexity")
     public static RaftConfig parseConfig(@Nonnull Config config) {
@@ -74,27 +73,27 @@ public final class HoconRaftConfigParser {
         RaftConfigBuilder builder = RaftConfig.newBuilder();
 
         if (config.hasPath(LEADER_ELECTION_TIMEOUT_MILLIS_FIELD_NAME)) {
-            builder.setLeaderElectionTimeoutMillis(config.getLong(LEADER_ELECTION_TIMEOUT_MILLIS_FIELD_NAME));
+            builder.setLeaderElectionTimeoutMillis(getLong(config, LEADER_ELECTION_TIMEOUT_MILLIS_FIELD_NAME));
         }
 
         if (config.hasPath(LEADER_HEARTBEAT_PERIOD_SECS_FIELD_NAME)) {
-            builder.setLeaderHeartbeatPeriodSecs(config.getLong(LEADER_HEARTBEAT_PERIOD_SECS_FIELD_NAME));
+            builder.setLeaderHeartbeatPeriodSecs(getLong(config, LEADER_HEARTBEAT_PERIOD_SECS_FIELD_NAME));
         }
 
         if (config.hasPath(LEADER_HEARTBEAT_TIMEOUT_SECS_FIELD_NAME)) {
-            builder.setLeaderHeartbeatTimeoutSecs(config.getLong(LEADER_HEARTBEAT_TIMEOUT_SECS_FIELD_NAME));
+            builder.setLeaderHeartbeatTimeoutSecs(getLong(config, LEADER_HEARTBEAT_TIMEOUT_SECS_FIELD_NAME));
         }
 
         if (config.hasPath(APPEND_ENTRIES_REQUEST_BATCH_SIZE_FIELD_NAME)) {
-            builder.setAppendEntriesRequestBatchSize(config.getInt(APPEND_ENTRIES_REQUEST_BATCH_SIZE_FIELD_NAME));
+            builder.setAppendEntriesRequestBatchSize(getInt(config, APPEND_ENTRIES_REQUEST_BATCH_SIZE_FIELD_NAME));
         }
 
         if (config.hasPath(COMMIT_COUNT_TO_TAKE_SNAPSHOT_FIELD_NAME)) {
-            builder.setCommitCountToTakeSnapshot(config.getInt(COMMIT_COUNT_TO_TAKE_SNAPSHOT_FIELD_NAME));
+            builder.setCommitCountToTakeSnapshot(getInt(config, COMMIT_COUNT_TO_TAKE_SNAPSHOT_FIELD_NAME));
         }
 
         if (config.hasPath(MAX_PENDING_LOG_ENTRY_COUNT_FIELD_NAME)) {
-            builder.setMaxPendingLogEntryCount(config.getInt(MAX_PENDING_LOG_ENTRY_COUNT_FIELD_NAME));
+            builder.setMaxPendingLogEntryCount(getInt(config, MAX_PENDING_LOG_ENTRY_COUNT_FIELD_NAME));
         }
 
         if (config.hasPath(TRANSFER_SNAPSHOTS_FROM_FOLLOWERS_ENABLED_FIELD_NAME)) {
@@ -103,10 +102,39 @@ public final class HoconRaftConfigParser {
         }
 
         if (config.hasPath(RAFT_NODE_REPORT_PUBLISH_PERIOD_SECS_FIELD_NAME)) {
-            builder.setRaftNodeReportPublishPeriodSecs(config.getInt(RAFT_NODE_REPORT_PUBLISH_PERIOD_SECS_FIELD_NAME));
+            builder.setRaftNodeReportPublishPeriodSecs(getInt(config, RAFT_NODE_REPORT_PUBLISH_PERIOD_SECS_FIELD_NAME));
         }
 
         return builder.build();
+    }
+
+    /**
+     * Rejects fractional values instead of truncating them.
+     *
+     * @throws IllegalArgumentException
+     *             if the value is invalid
+     */
+    private static long getLong(Config config, String path) {
+        try {
+            return ConfigParserUtil.getLong(config.getNumber(path), path);
+        } catch (ConfigException e) {
+            throw new IllegalArgumentException("Config field '" + path + "' must be a number: " + config.getValue(path).unwrapped(), e);
+        }
+    }
+
+    /**
+     * Rejects fractional and out-of-range values for int-backed fields.
+     *
+     * @throws IllegalArgumentException
+     *             if the value is invalid
+     */
+    private static int getInt(Config config, String path) {
+        try {
+            return Math.toIntExact(getLong(config, path));
+        } catch (ArithmeticException e) {
+            throw new IllegalArgumentException("Config field '" + path + "' must be an integer in the int range: "
+                    + config.getValue(path).unwrapped(), e);
+        }
     }
 
 }

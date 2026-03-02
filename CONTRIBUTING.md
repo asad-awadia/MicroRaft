@@ -5,6 +5,31 @@ a pull request via Github, a code fragment or patch by any public means, you
 agree to release your code under the terms of the Apache 2.0 license that you
 can find in the MicroRaft repository. 
 
+## Local Setup
+
+MicroRaft builds with Gradle. The default toolchain target is Java 11 and can
+be overridden locally with the `microraft.javaVersion` Gradle property when you
+want to run the build on a newer installed JDK.
+
+Useful commands:
+
+- `./gradlew build` builds all modules.
+- `./gradlew check` runs tests, Checkstyle, and SpotBugs.
+- `./gradlew qualityDashboard` generates a combined quality report at `build/reports/quality/index.html`.
+- `./gradlew :microraft-tutorial:test --tests io.microraft.tutorial.OperationCommitTest -Pmicroraft.javaVersion=21` runs the quickest local tutorial flow on a newer JDK.
+
+If Java 11 is installed on your machine, you can omit `-Pmicroraft.javaVersion=21`.
+If you only have a newer local JDK, set `-Pmicroraft.javaVersion=<your-installed-version>`
+to align Gradle's toolchain request with that JDK.
+
+## Repository Map
+
+- `microraft`: core Raft implementation and the main test suite.
+- `microraft-tutorial`: runnable local tutorial scenarios and sample state machines.
+- `microraft-metrics`: Micrometer integration.
+- `microraft-hocon`, `microraft-yaml`: configuration helper modules.
+- `microraft-store-sqlite`: SQLite-backed storage implementation.
+- `site-src`: source files for `microraft.io`.
 
 ## How to Report an Issue
 
